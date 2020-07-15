@@ -18,7 +18,7 @@ namespace DayNightMod
         static float sunriseAzimuth = -87f;
         static float sunsetAzimuth = 87f;
         static float dayIntensity = 2.4f;
-        static float nightIntensity = 0f;
+        static float nightIntensity = dayIntensity * 0.014f;
 
         // sun defaults
         static float defaultAltitude = 37.04399f;
@@ -29,8 +29,10 @@ namespace DayNightMod
         static float defaultRotation = 113f;
         static float defaultExposure = 1f;
 
-        // color grading defaults
-        static float defaultBrightness = 0f;
+        // ambient defaults
+        static UnityEngine.Rendering.AmbientMode defaultAmbientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        static Color defaultAmbientLight = Color.white;
+        static Color defaultFog = Color.cyan;
 
         // TODO: https://sunrise-sunset.org/api
         static float sunriseTime = 21600f;
@@ -40,7 +42,7 @@ namespace DayNightMod
         const float secondsInDay = 86400f;
 
         static Light sun = null;
-        static ColorGrading colorGrading = null;
+        static Light moon = null;
         //static AssetBundle assetBundle;
         static Texture[] skybox;
 
@@ -92,9 +94,9 @@ namespace DayNightMod
 			}
 
             modEntry.OnUpdate = null;
-            UpdateSun(defaultAltitude, defaultAzimuth, defaultIntensity);
-            UpdateSkybox(defaultRotation, defaultExposure);
-            colorGrading.brightness.value = defaultBrightness;
+            UpdateLight(sun, defaultAltitude, defaultAzimuth, defaultIntensity);
+            UpdateSkybox(defaultRotation, defaultExposure, 1f);
+            RenderSettings.ambientMode = defaultAmbientMode;
 
             return true;
         }
@@ -102,84 +104,115 @@ namespace DayNightMod
         static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)
 		{
             if (!FindSun())  return;
-            if (!findColorGrading()) return;
 
             DateTime now = DateTime.Now;
             TimeSpan timeSpanSinceMidnight = now.Subtract(new DateTime(now.Year, now.Month, now.Day));
             float secondsSinceMidnight = 0f; // 43200f; // (float)timeSpanSinceMidnight.TotalSeconds;
 
-            float altitude = (nadirAltitude - culminationAltitude) / 2f
+            float sunAltitude = (nadirAltitude - culminationAltitude) / 2f
                 * Mathf.Cos(2f * Mathf.PI * secondsSinceMidnight / secondsInDay)
                 + (culminationAltitude + nadirAltitude) / 2f;
-            float azimuth = 360f * secondsSinceMidnight / secondsInDay - 180f;
-            float intensity = dayIntensity;
+            float sunAzimuth = 360f * secondsSinceMidnight / secondsInDay - 180f;
+            float sunIntensity = dayIntensity;
             if (secondsSinceMidnight < dawnTime || secondsSinceMidnight > duskTime)
 			{
-                intensity = nightIntensity;
+                sunIntensity = 0f;
 			}
             else if (secondsSinceMidnight < sunriseTime)
 			{
-                intensity = (dayIntensity - nightIntensity)
+                sunIntensity = (dayIntensity)
                     * (secondsSinceMidnight - dawnTime)
                     / (sunriseTime - dawnTime);
 			}
             else if (secondsSinceMidnight > sunsetTime)
 			{
-                intensity = (dayIntensity - nightIntensity)
+                sunIntensity = (dayIntensity)
                     * (duskTime - secondsSinceMidnight)
                     / (duskTime - sunsetTime);
 			}
+            UpdateLight(sun, sunAltitude, sunAzimuth, sunIntensity);
 
-            UpdateSun(altitude, azimuth, intensity);
+            float moonAltitude = (nadirAltitude - culminationAltitude) / 2f
+                * Mathf.Cos(2f * Mathf.PI * secondsSinceMidnight / secondsInDay + Mathf.PI)
+                + (culminationAltitude + nadirAltitude) / 2f;
+            float moonAzimuth = 360f * secondsSinceMidnight / secondsInDay;
+            float moonIntensity = 0f;
+            if (secondsSinceMidnight < dawnTime || secondsSinceMidnight > duskTime)
+            {
+                moonIntensity = nightIntensity;
+            }
+            else if (secondsSinceMidnight < sunriseTime)
+            {
+                moonIntensity = (nightIntensity)
+                    * (dawnTime - secondsSinceMidnight)
+                    / (dawnTime - sunriseTime);
+            }
+            else if (secondsSinceMidnight > sunsetTime)
+            {
+                moonIntensity = (nightIntensity)
+                    * (secondsSinceMidnight - duskTime)
+                    / (sunsetTime - duskTime);
+            }
+            UpdateLight(moon, moonAltitude, moonAzimuth, moonIntensity);
 
             // this affects the VR loading environment, not the game environment!
             //SteamVR_Skybox.SetOverride(skybox[0], skybox[1], skybox[2], skybox[3], skybox[4], skybox[5]);
             // TODO: can the skybox texture be replaced at night?
 
-            float rotation = azimuth + 180f % 360f;
-            float ambientIntensity =  intensity * (dayIntensity - 0.16666f) / Mathf.Pow(dayIntensity, 2) + 0.16666f;
-            UpdateSkybox(rotation, ambientIntensity);
-
-            float brightness = intensity / dayIntensity - 1f;
-            // none of these help to dim the scenery:
-            //colorGrading.brightness.value = brightness;
-            //colorGrading.postExposure.value = brightness;
-            //colorGrading.masterCurve.value = new Spline(AnimationCurve.Linear(0, 0, 1, 0.16666f), 0, false, new Vector2(0, 1));
+            float skyRotation = sunAzimuth + 180f % 360f;
+            float skyExposure =  sunIntensity * (dayIntensity - 0.05f) / Mathf.Pow(dayIntensity, 2) + 0.05f;
+            float ambientIntensity = sunIntensity * (dayIntensity - 0.05f) / Mathf.Pow(dayIntensity, 2) + 0.05f;
+            UpdateSkybox(skyRotation, skyExposure, ambientIntensity);
 
             Debug.Log(string.Format("[Sun Settings]\n" +
-                "  >altitude={0}\n" +
-                "  >azimuth={1}\n" +
-                "  >intensity={2}\n" +
-                "  >rotation={3}\n" +
-                "  >ambient={4}\n" +
-                "  brightness={5}",
-                altitude,
-                azimuth,
-                intensity,
-                rotation,
-                ambientIntensity,
-                brightness));
+                "  >sun altitude={0}\n" +
+                "  >sun azimuth={1}\n" +
+                "  >sun intensity={2}\n" +
+                "  >sky rotation={3}\n" +
+                "  >sky exposure={4}\n" +
+                "  >ambient={5}",
+                sunAltitude,
+                sunAzimuth,
+                sunIntensity,
+                skyRotation,
+                skyExposure,
+                ambientIntensity));
+
+            // TODO: remove this when re-enbling time-based lighting
+            modEntry.OnUpdate = null;
         }
 
-        static bool findColorGrading()
+        static void UpdateLight(Light light, float altitude, float azimuth, float intensity)
 		{
-            if (colorGrading == null)
-            {
-                PostProcessVolume ppv = UnityEngine.Object.FindObjectOfType<PostProcessVolume>();
-                if (ppv == null) return false;
+            if (light == null) return;
 
-                ppv.profile.TryGetSettings<ColorGrading>(out colorGrading);
-                if (colorGrading == null) return false;
-
-                defaultBrightness = colorGrading.brightness.value;
-                Debug.Log("color grading brightness: " + colorGrading.brightness.value);
-            }
-
-            return true;
+            Vector3 angles = sun.transform.rotation.eulerAngles;
+            angles.x = altitude;
+            angles.y = azimuth;
+            light.transform.rotation = Quaternion.Euler(angles);
+            light.intensity = intensity;
 		}
 
-        static bool FindSun()
+        static void UpdateSkybox(float rotation, float exposure, float ambient)
 		{
+            RenderSettings.skybox.SetFloat("_Rotation", rotation);
+            RenderSettings.skybox.SetFloat("_Exposure", exposure);
+
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+
+            float ambientRed = defaultAmbientLight.r * ambient;
+            float ambientGreen = defaultAmbientLight.g * ambient;
+            float ambientBlue = defaultAmbientLight.b * ambient;
+            RenderSettings.ambientLight = new Color(ambientRed, ambientGreen, ambientBlue);
+
+            float fogRed = defaultFog.r * ambient;
+            float fogGreen = defaultFog.g * ambient;
+            float fogBlue = defaultFog.b * ambient;
+            RenderSettings.fogColor = new Color(fogRed, fogGreen, fogBlue);
+        }
+
+        static bool FindSun()
+        {
             if (sun == null)
             {
                 sun = UnityEngine.Object.FindObjectsOfType<Light>()
@@ -187,45 +220,48 @@ namespace DayNightMod
 
                 if (sun == null) return false;
 
+                moon = UnityEngine.Object.Instantiate<Light>(sun);
+
+                if (sun == moon)
+                {
+                    throw new Exception("sun and moon are the same!");
+                }
+
+                moon.color = new Color(moon.color.r * 0.7f, moon.color.g * 0.85f, moon.color.b);
+
                 Vector3 sunDefault = sun.transform.rotation.eulerAngles;
                 defaultAltitude = sunDefault.x;
                 defaultAzimuth = sunDefault.y;
                 defaultIntensity = sun.intensity;
 
-                Debug.Log(string.Format("[DayNight] defaults:\n" +
-                    "  altitude={0}\n" +
-                    "  azimuth={1}\n" +
-                    "  intensity={2}",
-                    defaultAltitude,
-                    defaultAzimuth,
-                    defaultIntensity));
-
                 defaultRotation = RenderSettings.skybox.GetFloat("_Rotation");
                 defaultExposure = RenderSettings.skybox.GetFloat("_Exposure");
+                defaultAmbientMode = RenderSettings.ambientMode;
+                defaultAmbientLight = RenderSettings.ambientLight;
+                defaultFog = RenderSettings.fogColor;
+
+                Debug.Log(string.Format("[DayNight] defaults:\n" +
+                    "  >altitude={0}\n" +
+                    "  >azimuth={1}\n" +
+                    "  >intensity={2}\n" +
+                    "  >rotation={3}\n" +
+                    "  >exposure={4}\n" +
+                    "  >ambient mode={5}\n" +
+                    "  >ambient light={6}\n" +
+                    "  >fog color={7}",
+                    defaultAltitude,
+                    defaultAzimuth,
+                    defaultIntensity,
+                    defaultRotation,
+                    defaultExposure,
+                    defaultAmbientMode,
+                    defaultAmbientLight,
+                    defaultFog));
 
                 Debug.Log("skybox shader: " + RenderSettings.skybox.shader.name);
-                Debug.Log("skybox rotation: " + defaultRotation);
-                Debug.Log("skybox exposure: " + defaultExposure);
             }
 
             return true;
-        }
-
-        static void UpdateSun(float altitude, float azimuth, float intensity)
-		{
-            if (sun == null) return;
-
-            Vector3 angles = sun.transform.rotation.eulerAngles;
-            angles.x = altitude;
-            angles.y = azimuth;
-            sun.transform.rotation = Quaternion.Euler(angles);
-            sun.intensity = intensity;
-		}
-
-        static void UpdateSkybox(float rotation, float exposure)
-		{
-            RenderSettings.skybox.SetFloat("_Rotation", rotation);
-            RenderSettings.skybox.SetFloat("_Exposure", exposure);
         }
     }
 }
