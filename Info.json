@@ -1,0 +1,8 @@
+{
+    "Id": "DayNightMod",
+    "DisplayName": "Day/Night",
+    "Author": "fauxnik",
+    "Version": "1.0.0",
+    "AssemblyName": "DayNightMod.dll",
+    "EntryMethod": "DayNightMod.Main.Load"
+}
