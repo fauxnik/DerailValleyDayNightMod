@@ -77,7 +77,6 @@
     <PostBuildEvent>mkdir "$(DVInstallPath)Mods\$(SolutionName)\"
 copy $(TargetPath) "$(DVInstallPath)Mods\$(SolutionName)\"
 copy $(SolutionDir)Info.json "$(DVInstallPath)Mods\$(SolutionName)\"
-Xcopy /Y $(SolutionDir)Resources "$(DVInstallPath)Mods\$(SolutionName)\Resources\"
 if $(Configuration) == Release (
   powershell Compress-Archive -DestinationPath '$(SolutionDir)$(SolutionName).zip' -Path '"$(DVInstallPath)Mods\$(SolutionName)\' -Force
 )</PostBuildEvent>
