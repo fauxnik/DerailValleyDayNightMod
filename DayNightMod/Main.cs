@@ -62,6 +62,7 @@ namespace DayNightMod
             //else
             //    modEntry.Logger.Log("loaded skybox asset bundle");
 
+            /* TODO: replace the skybox at night?
             skybox = new Texture[6];
             var sides = new string[] { "Front", "Back", "Left", "Right", "Top", "Bottom" };
             for (int i = 0; i < sides.Length; i++)
@@ -85,6 +86,7 @@ namespace DayNightMod
 
                 skybox[i] = texture;
             }
+            */
 
             modEntry.OnToggle = OnToggle;
 
@@ -183,7 +185,7 @@ namespace DayNightMod
 
             // this affects the VR loading environment, not the game environment!
             //SteamVR_Skybox.SetOverride(skybox[0], skybox[1], skybox[2], skybox[3], skybox[4], skybox[5]);
-            // TODO: can the skybox texture be replaced at night?
+            // TODO: replace the skybox texture at night?
 
             float skyRotation = 180f - sunAzimuth % 360f;
             float skyExposure =  minimumExposure + (1f - minimumExposure) * sunIntensity / dayIntensity;
