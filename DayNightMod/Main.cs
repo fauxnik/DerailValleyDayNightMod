@@ -113,18 +113,21 @@ namespace DayNightMod
 
             DateTime now = DateTime.Now;
             TimeSpan timeSpanSinceMidnight = now.Subtract(new DateTime(now.Year, now.Month, now.Day));
+#if DEBUG
+            // 48 sec / day
+            float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 1800f % secondsInDay;
+#else
             // real time
             float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds;
+#endif
             // 24 sec / day
-            //float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 3600f % secondsInDay;
+            // secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 3600f % secondsInDay;
             // 36 sec / day
-            // float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 2700f % secondsInDay;
-            // 48 sec / day
-            // float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 1800f % secondsInDay;
+            // secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 2700f % secondsInDay;
             // midnight
-            // float secondsSinceMidnight = 0f;
+            // secondsSinceMidnight = 0f;
             // ?
-            // float secondsSinceMidnight = 43200f;
+            // secondsSinceMidnight = 43200f;
             // no need to spam update for constant values
             // modEntry.OnUpdate = null;
 
