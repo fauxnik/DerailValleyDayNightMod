@@ -4,5 +4,6 @@
     "Author": "fauxnik",
     "Version": "1.0.0",
     "AssemblyName": "DayNightMod.dll",
-    "EntryMethod": "DayNightMod.Main.Load"
+    "EntryMethod": "DayNightMod.Main.Load",
+    "Repository": "https://raw.githubusercontent.com/fauxnik/DerailValleyDayNightMod/master/Repository.json"
 }
