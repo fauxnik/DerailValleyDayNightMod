@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using RootMotion.FinalIK;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 using UnityModManagerNet;
@@ -9,7 +10,7 @@ using VRTK;
 
 namespace DayNightMod
 {
-    public class Main
+	public class Main
     {
         // altitude = x, azimuth = y
         static float culminationAltitude = 72f;
@@ -52,6 +53,8 @@ namespace DayNightMod
         //static AssetBundle assetBundle;
         static Texture[] skybox;
 
+        private static Settings settings;
+
         static bool Load(UnityModManager.ModEntry modEntry)
 		{
             // TODO: figure out how to use an asset bundle
@@ -90,6 +93,10 @@ namespace DayNightMod
 
             modEntry.OnToggle = OnToggle;
 
+            settings = Settings.Load<Settings>(modEntry);
+            modEntry.OnGUI = OnGUI;
+            modEntry.OnSaveGUI = OnSaveGUI;
+
             return true;
         }
 
@@ -119,8 +126,8 @@ namespace DayNightMod
             // 48 sec / day
             float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 1800f % secondsInDay;
 #else
-            // real time
-            float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds;
+            // real time at settings.TimeMultiplier = 1f
+            float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * settings.TimeMultiplier % secondsInDay;
 #endif
             // 24 sec / day
             // secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 3600f % secondsInDay;
@@ -290,5 +297,30 @@ namespace DayNightMod
 
             return true;
         }
+
+        static void OnGUI(UnityModManager.ModEntry modEntry)
+        {
+	        GUILayout.BeginHorizontal();
+	        settings.Draw(modEntry);
+            GUILayout.EndHorizontal();
+        }
+
+        static void OnSaveGUI(UnityModManager.ModEntry modEntry)
+        {
+            settings.Save(modEntry);
+        }
     }
+
+	public class Settings : UnityModManager.ModSettings, IDrawable
+	{
+		[Draw("Time Multiplier (Game Seconds per Real Second)", Precision = 0, Min = 0)] public int TimeMultiplier = 1;
+		public override void Save(UnityModManager.ModEntry modEntry)
+		{
+            Save(this, modEntry);
+		}
+
+		public void OnChange()
+		{
+		}
+	}
 }
