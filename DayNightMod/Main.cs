@@ -115,8 +115,6 @@ namespace DayNightMod
 
             DateTime now = TimeSource.GetCurrentTime();
             TimeSpan timeSpanSinceMidnight = now.Subtract(new DateTime(now.Year, now.Month, now.Day));
-
-            // real time
             float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds;
 
             float sunAltitude = (nadirAltitude - culminationAltitude) / 2f
@@ -294,7 +292,7 @@ namespace DayNightMod
 
         public static Func<DateTime> GetCurrentTime;
     }
-    
+
     public static class DvTimeAdapter
     {
         static DvTimeAdapter()
