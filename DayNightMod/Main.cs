@@ -53,7 +53,7 @@ namespace DayNightMod
         static Texture[] skybox;
 
         static bool Load(UnityModManager.ModEntry modEntry)
-		{
+        {
             // TODO: figure out how to use an asset bundle
             //string assetBundlePath = modEntry.Path + "Resources\\skybox";
             //assetBundle = AssetBundle.LoadFromFile(assetBundlePath);
@@ -66,13 +66,13 @@ namespace DayNightMod
             skybox = new Texture[6];
             var sides = new string[] { "Front", "Back", "Left", "Right", "Top", "Bottom" };
             for (int i = 0; i < sides.Length; i++)
-			{
+            {
                 string side = sides[i];
                 string filePath = modEntry.Path + "Resources\\Dusk_" + side + ".png";
                 byte[] fileData = File.ReadAllBytes(filePath);
                 
                 if (fileData == null)
-				{
+                {
                     modEntry.Logger.Error(string.Format(
                         "failed to load skybox side ({0})",
                         filePath));
@@ -94,12 +94,12 @@ namespace DayNightMod
         }
 
         static bool OnToggle(UnityModManager.ModEntry modEntry, bool isTogglingOn)
-		{
+        {
             if (isTogglingOn)
             {
                 modEntry.OnUpdate = OnUpdate;
                 return true;
-			}
+            }
 
             modEntry.OnUpdate = null;
             UpdateLight(sun, defaultAltitude, defaultAzimuth, defaultIntensity);
@@ -110,28 +110,12 @@ namespace DayNightMod
         }
 
         static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)
-		{
+        {
             if (!FindSun())  return;
 
-            DateTime now = DateTime.Now;
+            DateTime now = TimeSource.GetCurrentTime();
             TimeSpan timeSpanSinceMidnight = now.Subtract(new DateTime(now.Year, now.Month, now.Day));
-#if DEBUG
-            // 48 sec / day
-            float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 1800f % secondsInDay;
-#else
-            // real time
             float secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds;
-#endif
-            // 24 sec / day
-            // secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 3600f % secondsInDay;
-            // 36 sec / day
-            // secondsSinceMidnight = (float)timeSpanSinceMidnight.TotalSeconds * 2700f % secondsInDay;
-            // midnight
-            // secondsSinceMidnight = 0f;
-            // ?
-            // secondsSinceMidnight = 43200f;
-            // no need to spam update for constant values
-            // modEntry.OnUpdate = null;
 
             float sunAltitude = (nadirAltitude - culminationAltitude) / 2f
                 * Mathf.Cos(2f * Mathf.PI * secondsSinceMidnight / secondsInDay)
@@ -139,18 +123,18 @@ namespace DayNightMod
             float sunAzimuth = 360f * secondsSinceMidnight / secondsInDay - 180f;
             float sunIntensity = dayIntensity;
             if (secondsSinceMidnight < dawnStart || secondsSinceMidnight > duskEnd)
-			{
+            {
                 sunIntensity = 0f;
-			}
+            }
             else if (secondsSinceMidnight < dawnEnd)
-			{
+            {
                 sunIntensity = Mathf.Lerp(
                     0f,
                     dayIntensity,
                     Mathf.SmoothStep(0, 1, (secondsSinceMidnight - dawnStart) / (dawnEnd - dawnStart)));
-			}
+            }
             else if (secondsSinceMidnight > duskStart)
-			{
+            {
                 sunIntensity = Mathf.Lerp(
                     dayIntensity,
                     0f,
@@ -210,7 +194,7 @@ namespace DayNightMod
         }
 
         static void UpdateLight(Light light, float altitude, float azimuth, float intensity)
-		{
+        {
             if (light == null) return;
 
             Vector3 angles = sun.transform.rotation.eulerAngles;
@@ -218,10 +202,10 @@ namespace DayNightMod
             angles.y = azimuth;
             light.transform.rotation = Quaternion.Euler(angles);
             light.intensity = intensity;
-		}
+        }
 
         static void UpdateSkybox(float rotation, float exposure, float ambient)
-		{
+        {
             RenderSettings.skybox.SetFloat("_Rotation", rotation);
             RenderSettings.skybox.SetFloat("_Exposure", exposure);
 
@@ -290,5 +274,46 @@ namespace DayNightMod
 
             return true;
         }
+    }
+
+    public static class TimeSource
+    {
+        static TimeSource()
+        {
+            if (DvTimeAdapter.Available)
+            {
+                GetCurrentTime = DvTimeAdapter.GetTime;
+            }
+            else
+            {
+                GetCurrentTime = () => DateTime.Now;
+            }
+        }
+
+        public static Func<DateTime> GetCurrentTime;
+    }
+
+    public static class DvTimeAdapter
+    {
+        static DvTimeAdapter()
+        {
+            try
+            {
+                DoInitialize(); // separate function to be able to catch dll load exceptions when DvTime is not installed
+            }
+            catch (Exception ex)
+            {
+                Debug.Log($"unable to load DVTime: {ex}" );
+            }
+        }
+
+        private static void DoInitialize()
+        {
+	        _ = CurrentTime.Time;
+            GetTime = () => CurrentTime.Time;
+        }
+
+        public static bool Available => GetTime != null;
+        public static Func<DateTime> GetTime;
     }
 }
