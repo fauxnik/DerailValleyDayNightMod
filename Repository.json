@@ -2,6 +2,11 @@
     "Releases": [
         {
             "Id": "DayNightMod",
+            "Version": "1.1.0",
+            "DownloadUrl": "https://github.com/fauxnik/DerailValleyDayNightMod/releases/download/v1.1.0/DayNightMod.zip"
+        },
+        {
+            "Id": "DayNightMod",
             "Version": "1.0.1",
             "DownloadUrl": "https://github.com/fauxnik/DerailValleyDayNightMod/releases/download/v1.0.1/DayNightMod.zip"
         },
